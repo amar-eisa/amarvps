@@ -6,6 +6,9 @@ import DiskUsage from "@/components/dashboard/DiskUsage";
 import NetworkIO from "@/components/dashboard/NetworkIO";
 import ServicesTable from "@/components/dashboard/ServicesTable";
 import CpuRamChart from "@/components/dashboard/CpuRamChart";
+import ContainersTable from "@/components/dashboard/ContainersTable";
+import RecentCommands from "@/components/dashboard/RecentCommands";
+import ServerUsers from "@/components/dashboard/ServerUsers";
 import ServiceTimeline from "@/components/dashboard/ServiceTimeline";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
@@ -111,6 +114,21 @@ const Index = () => {
 
         {/* Services table */}
         {data && <ServicesTable services={data.services} />}
+
+        {/* Containers with owners */}
+        {data?.containers && data.containers.length > 0 && (
+          <ContainersTable containers={data.containers} />
+        )}
+
+        {/* Server Users */}
+        {data?.users && data.users.length > 0 && (
+          <ServerUsers users={data.users} />
+        )}
+
+        {/* Recent Commands */}
+        {data?.recent_commands && data.recent_commands.length > 0 && (
+          <RecentCommands commands={data.recent_commands} />
+        )}
 
         {/* Loading skeleton */}
         {loading && !data && (
