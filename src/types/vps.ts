@@ -23,6 +23,9 @@ export interface VpsData {
   services: ServiceInfo[];
   disks?: DiskInfo[];
   network?: NetworkInfo;
+  users?: UserInfo[];
+  recent_commands?: CommandEntry[];
+  containers?: ContainerInfo[];
 }
 
 export interface ServiceInfo {
@@ -30,4 +33,21 @@ export interface ServiceInfo {
   name: string;
   pid: number | null;
   status: "running" | "stopped";
+}
+
+export interface UserInfo {
+  name: string;
+  home: string;
+}
+
+export interface CommandEntry {
+  user: string;
+  command: string;
+}
+
+export interface ContainerInfo {
+  id: string;
+  name: string;
+  status: string;
+  owner: string;
 }
