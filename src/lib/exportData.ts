@@ -25,7 +25,8 @@ export function exportAsJson(data: unknown, baseName: string) {
   triggerDownload(JSON.stringify(data, null, 2), `${baseName}-${stamp}.json`, "application/json");
 }
 
-export function exportAsCsv(rows: Record<string, unknown>[], baseName: string) {
+export function exportAsCsv<T extends Record<string, unknown>>(rows: readonly T[], baseName: string) {
+  const typedRows = rows as readonly Record<string, unknown>[];
   if (!rows.length) return;
   const headers = Array.from(
     rows.reduce<Set<string>>((set, row) => {
