@@ -25,12 +25,29 @@ serve(async (req) => {
     const targetUrl = `${hostUrl}/status`;
     console.log("Connecting to:", targetUrl);
 
-    const response = await fetch(targetUrl, {
-      headers: {
-        "X-API-Key": accessKey,
-        "Content-Type": "application/json",
-      },
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20000);
+
+    let response: Response;
+    try {
+      response = await fetch(targetUrl, {
+        headers: {
+          "X-API-Key": accessKey,
+          "Content-Type": "application/json",
+        },
+        signal: controller.signal,
+      });
+    } catch (e: any) {
+      clearTimeout(timeoutId);
+      const msg = e.name === "AbortError"
+        ? "انتهت مهلة الاتصال بالسيرفر (20 ثانية). تحقق من أن الـ Agent يعمل وأن البورت 8050 مفتوح."
+        : `فشل الاتصال: ${e.message}`;
+      return new Response(
+        JSON.stringify({ error: msg }),
+        { status: 504, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const text = await response.text();
