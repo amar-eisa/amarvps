@@ -1,4 +1,4 @@
-
+import { useState } from "react";
 import { useVpsData } from "@/hooks/useVpsData";
 import StatCard from "@/components/dashboard/StatCard";
 import ResourceOverview from "@/components/dashboard/ResourceOverview";
@@ -10,16 +10,22 @@ import ContainersTable from "@/components/dashboard/ContainersTable";
 import RecentCommands from "@/components/dashboard/RecentCommands";
 import ServerUsers from "@/components/dashboard/ServerUsers";
 import ServiceTimeline from "@/components/dashboard/ServiceTimeline";
+import DashboardToolbar from "@/components/dashboard/DashboardToolbar";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Network, Container, Wifi, WifiOff, RefreshCw, Settings, Clock, Server } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useRefreshInterval } from "@/hooks/useRefreshInterval";
+import { useDashboardFilter } from "@/hooks/useDashboardFilter";
+import { useTvMode } from "@/hooks/useTvMode";
 
 const Index = () => {
   const { interval: refreshInterval } = useRefreshInterval();
   const { data, loading, error, lastUpdated, refresh, history, serviceEvents } = useVpsData(refreshInterval);
   const navigate = useNavigate();
+  const [query, setQuery] = useState("");
+  const filtered = useDashboardFilter(data, query);
+  const { enabled: tvMode, toggle: toggleTvMode } = useTvMode();
 
   const runningServices = data?.services.filter((s) => s.status === "running").length ?? 0;
   const totalPorts = data?.services.length ?? 0;
