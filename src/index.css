@@ -91,4 +91,20 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* TV Mode: larger type and hidden chrome for wall-mounted displays */
+  body.tv-mode {
+    font-size: 1.125rem;
+  }
+  body.tv-mode .tv-hide {
+    display: none !important;
+  }
+  body.tv-mode h1,
+  body.tv-mode h2,
+  body.tv-mode h3 {
+    letter-spacing: 0.01em;
+  }
+  body.tv-mode .container {
+    max-width: 100% !important;
+  }
 }
