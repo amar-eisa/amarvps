@@ -1,56 +1,54 @@
 
 
-## جلب بيانات الحاويات من ملف tebez.json
+## إبقاء Lovable Cloud نشطاً دائماً
 
-### ملخص
-تعديل النظام ليدعم حقل `port` الجديد القادم من ملف `tebez.json` وعرضه في جدول الحاويات.
+### المشكلة
+مشروع Lovable Cloud (قاعدة البيانات وEdge Functions) يدخل في وضع السكون (pause) بعد فترة من عدم الاستخدام. عند فتح الموقع بعد فترة طويلة، يحتاج Cloud وقتاً ليستيقظ، مما يسبب بطء أو فشل في أول طلب (504 / timeout).
 
-### ما لا يحتاج تعديل
-- Edge Function (`server-monitor/index.ts`) - لا يحتاج تعديل، فهو يمرر البيانات كما هي من الـ Agent
-- Hook (`useVpsData.ts`) - لا يحتاج تعديل
+### السبب
+مشاريع Lovable Cloud على الخطط المجانية/الأساسية تدخل في **وضع السكون التلقائي** عند عدم وجود نشاط لفترة. هذا سلوك من البنية التحتية لتوفير الموارد، وليس خطأ في الكود.
 
-### التعديلات في الواجهة الامامية
+### الحلول المتاحة
 
-#### 1. تحديث `src/types/vps.ts`
-اضافة حقل `port` اختياري الى `ContainerInfo`:
+#### الحل 1: Keep-Alive Cron Job (موصى به - مجاني)
+إنشاء cron job يستدعي edge function بشكل دوري كل 5 دقائق لإبقاء Cloud مستيقظاً.
+
+**الخطوات:**
+1. إنشاء edge function جديدة `keep-alive` تقوم بـ:
+   - استعلام بسيط على قاعدة البيانات (مثل `SELECT 1`)
+   - إرجاع استجابة سريعة
+2. تفعيل الـ extensions المطلوبة في قاعدة البيانات:
+   - `pg_cron` - لجدولة المهام
+   - `pg_net` - لاستدعاء HTTP من داخل Postgres
+3. إنشاء cron job يعمل كل 5 دقائق ويستدعي `keep-alive`:
 ```text
-export interface ContainerInfo {
-  id: string;
-  name: string;
-  status: string;
-  port: string;    // جديد - من tebez.json
-  owner: string;
-}
+SELECT cron.schedule(
+  'keep-alive-ping',
+  '*/5 * * * *',
+  $$ SELECT net.http_post(
+    url := 'https://wlmvzdhvvbbqidhvrdsh.supabase.co/functions/v1/keep-alive',
+    headers := '{"Content-Type": "application/json"}'::jsonb
+  ); $$
+);
 ```
 
-#### 2. تحديث `src/components/dashboard/ContainersTable.tsx`
-اضافة عمود "البورت" في الجدول لعرض المنفذ الخاص بكل حاوية، مع عرض "-" اذا كانت القيمة "None".
+#### الحل 2: ترقية حجم الـ Instance (الأكثر موثوقية)
+من داخل Lovable: **Cloud → Advanced settings → Upgrade instance**
+- instances الأكبر لا تدخل في السكون بنفس السرعة
+- أداء أفضل بشكل عام
+- تكلفة إضافية على استخدام Cloud
 
-### التعديل على السيرفر (يدويا)
+#### الحل 3: تحسين Edge Function الحالية (مكمل)
+رفع مهلة الاتصال في `server-monitor` من 20 ثانية إلى 30 ثانية، وإضافة retry واحد تلقائي عند فشل أول محاولة (للتعامل مع cold start).
 
-في ملف `/opt/server-monitor/agent.py`، استبدل دالة جلب الحاويات الحالية بقراءة الملف:
+### التوصية
+البدء بـ **الحل 1 (Keep-Alive)** لأنه مجاني وفعال. إذا استمرت المشكلة أو زاد حجم المشروع، الانتقال للحل 2.
 
-```text
-import json
+### الملفات التي سيتم تعديلها/إنشاؤها
+1. **إنشاء** `supabase/functions/keep-alive/index.ts` - edge function خفيفة
+2. **إنشاء migration** لتفعيل `pg_cron` + `pg_net` وجدولة المهمة
+3. **تعديل** `supabase/functions/server-monitor/index.ts` - إضافة retry logic لأول محاولة
 
-def get_containers_from_file():
-    try:
-        with open("/home/amar/tebez.json", "r") as f:
-            return json.load(f)
-    except Exception as e:
-        print(f"Error reading tebez.json: {e}")
-        return []
-```
-
-ثم في response الـ `/status`:
-```text
-"containers": get_containers_from_file()
-```
-
-بعد التعديل: `sudo systemctl restart server-monitor.service`
-
-### الترتيب
-1. تحديث `vps.ts` - اضافة حقل port
-2. تحديث `ContainersTable.tsx` - اضافة عمود البورت
-3. تحديث `agent.py` على السيرفر يدويا لقراءة الملف
+### ملاحظة
+هذا الحل يبقي Lovable Cloud (قاعدة البيانات + Edge Functions) نشطاً. أما الـ VPS Agent الخاص بك على `5.189.155.145:8050` فهو مستقل تماماً ولا يتأثر بهذه المشكلة.
 
