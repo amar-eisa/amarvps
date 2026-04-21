@@ -144,7 +144,7 @@ const Index = () => {
 
         {/* Containers with owners */}
         {filtered?.containers && filtered.containers.length > 0 && (
-          <ContainersTable containers={filtered.containers} />
+          <ContainersTable containers={filtered.containers} onAfterAction={refresh} />
         )}
 
         {/* Server Users */}
