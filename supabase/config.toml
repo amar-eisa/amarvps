@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.keep-alive]
 verify_jwt = false
+
+[functions.container-action]
+verify_jwt = false
