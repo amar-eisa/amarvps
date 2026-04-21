@@ -58,9 +58,26 @@ const Index = () => {
       </header>
 
       <main className="container px-4 py-6 space-y-6">
+        {/* Toolbar: search, export, TV mode */}
+        <DashboardToolbar
+          query={query}
+          onQueryChange={setQuery}
+          data={data}
+          tvMode={tvMode}
+          onToggleTvMode={toggleTvMode}
+        />
+
+        {query && filtered && (
+          <div className="text-xs text-muted-foreground">
+            {filtered.matchCount > 0
+              ? `${filtered.matchCount} نتيجة مطابقة لـ "${query}"`
+              : `لا توجد نتائج لـ "${query}"`}
+          </div>
+        )}
+
         {/* Last updated */}
         {lastUpdated && (
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground tv-hide">
             <Clock className="h-3 w-3" />
             <span>آخر تحديث: {lastUpdated.toLocaleTimeString("ar-EG")}</span>
           </div>
@@ -113,27 +130,35 @@ const Index = () => {
         {data?.network && <NetworkIO network={data.network} />}
 
         {/* CPU/RAM History Chart */}
-        <CpuRamChart data={history} />
+        <div className="tv-hide">
+          <CpuRamChart data={history} />
+        </div>
 
         {/* Service Status Timeline */}
-        <ServiceTimeline events={serviceEvents} />
+        <div className="tv-hide">
+          <ServiceTimeline events={serviceEvents} />
+        </div>
 
         {/* Services table */}
-        {data && <ServicesTable services={data.services} />}
+        {filtered && <ServicesTable services={filtered.services} />}
 
         {/* Containers with owners */}
-        {data?.containers && data.containers.length > 0 && (
-          <ContainersTable containers={data.containers} />
+        {filtered?.containers && filtered.containers.length > 0 && (
+          <ContainersTable containers={filtered.containers} />
         )}
 
         {/* Server Users */}
-        {data?.users && data.users.length > 0 && (
-          <ServerUsers users={data.users} />
+        {filtered?.users && filtered.users.length > 0 && (
+          <div className="tv-hide">
+            <ServerUsers users={filtered.users} />
+          </div>
         )}
 
         {/* Recent Commands */}
-        {data?.recent_commands && data.recent_commands.length > 0 && (
-          <RecentCommands commands={data.recent_commands} />
+        {filtered?.recent_commands && filtered.recent_commands.length > 0 && (
+          <div className="tv-hide">
+            <RecentCommands commands={filtered.recent_commands} />
+          </div>
         )}
 
         {/* Loading skeleton */}
