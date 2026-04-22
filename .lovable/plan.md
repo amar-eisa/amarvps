@@ -1,101 +1,39 @@
 
 
-## خطة إعادة التثبيت من الصفر بأسماء جديدة
+## تعديل سكربت التثبيت ليتجاوز فشل مستودعات apt
 
-### المفهوم
-بدل محاولة إصلاح الفوضى الحالية على VPS، سنُنشئ نظاماً موازياً بأسماء جديدة تماماً وعلى بورت جديد `8070`. الملفات القديمة تبقى كما هي (لا نلمسها) ثم نعطّلها لاحقاً بعد التأكد أن الجديد يعمل.
+### السبب
+- VPS يستخدم Ubuntu Noble قديم نُقل إلى `old-releases.ubuntu.com` وبعض مساراته ترجع 404
+- يوجد مستودعان تالفان: `packages.azlux.fr/debian noble` و Debian `stretch`
+- نتيجة `set -e` + فشل `apt-get update` → السكربت يتوقف قبل تثبيت أي شيء
+- لكن الحزم المطلوبة (`python3`, `python3-venv`, `curl`, `lsof`) شبه مؤكد موجودة على VPS مسبقاً
 
----
+### التعديلات على `scripts/install-vps-agent.sh`
 
-### الأسماء الجديدة المقترحة
+**1) فحص الحزم قبل محاولة التثبيت**
+- أضافة دالة `need_pkg()` تفحص بـ `command -v` أو `dpkg -s`
+- إذا كل الحزم موجودة → تخطي `apt-get update` و `apt-get install` كلياً
+- رسالة واضحة: "كل التبعيات موجودة، تخطي apt"
 
-| العنصر | الاسم القديم | الاسم الجديد |
-|---|---|---|
-| مجلد العمل | `/opt/server-monitor/` | `/opt/vps-agent-v2/` |
-| ملف Python | `agent.py` | `vps_agent.py` |
-| خدمة systemd | `server-monitor.service` | `vps-agent-v2.service` |
-| البورت | `8050` | `8070` |
-| متغير البيئة للمفتاح | `MONITOR_API_KEY` | `VPS_AGENT_KEY` |
+**2) جعل apt اختيارياً وغير قاتل**
+- تغليف `apt-get update` بـ `|| true` حتى لا يوقف السكربت
+- استخدام `-o Acquire::AllowInsecureRepositories=true` و `-o APT::Get::AllowUnauthenticated=true` لتجاهل أخطاء التواقيع
+- تثبيت الحزم الناقصة فقط (وليس كلها دفعة واحدة)
 
----
+**3) ضمان عمل venv حتى بدون apt**
+- لو `python3 -m venv` فشل بسبب نقص `python3-venv`، نطبع رسالة واضحة بأمر يدوي واحد لتثبيتها من `old-releases` مباشرة، ثم نخرج
+- في الغالب لن يصل لهذه النقطة لأن `python3-venv` موجودة مسبقاً
 
-### ما سأقدّمه لك (نصوص جاهزة للنسخ)
-
-**1) سكربت تثبيت واحد (`install.sh`)** ينفّذ كل شيء على VPS:
-- يُنشئ `/opt/vps-agent-v2/`
-- يكتب `vps_agent.py` (نفس وظائف agent القديم + مسارات `/container/<action>`)
-- يُنشئ ويُفعّل `vps-agent-v2.service` على بورت `8070`
-- يُنشئ مفتاح API عشوائي ويحفظه في `/etc/vps-agent-v2.env`
-- يفتح بورت `8070` في الجدار الناري إن وُجد `ufw`
-- يطبع المفتاح في النهاية لتنسخه
-
-**2) ملف `vps_agent.py` كامل** يحتوي على:
-- `GET /health` و `GET /status`
-- `POST /container/start|stop|restart|remove|logs`
-- مصادقة عبر `X-API-Key`
-- نفس البيانات التي تتوقعها اللوحة (CPU, RAM, Disk, Network, Services, Containers, Users, Recent Commands)
-
-**3) ملف `vps-agent-v2.service`** بإعدادات نظيفة (لا crash loop, restart مع تأخير).
-
----
-
-### ما سأعدّله في مشروع Lovable
-
-**أ) تحديث Edge Function لتستخدم أسماء أسرار جديدة**
-- `supabase/functions/server-monitor/index.ts`
-- `supabase/functions/container-action/index.ts`
-
-تتغير من:
-```
-MONITOR_HOST_URL  →  VPS_AGENT_URL
-MONITOR_ACCESS_KEY → VPS_AGENT_KEY
-```
-
-**ب) إضافة الأسرار الثلاثة الجديدة عبر Lovable Cloud:**
-- `VPS_AGENT_URL` = `http://YOUR_VPS_IP:8070`
-- `VPS_AGENT_KEY` = المفتاح الذي يطبعه سكربت التثبيت
-- (الأسرار القديمة تبقى لكن لن تُستخدم)
-
----
-
-### خطوات التنفيذ بترتيب واضح
-
-#### على VPS (أنت):
-1. انسخ سكربت `install.sh` إلى ملف على VPS
-2. شغّله: `sudo bash install.sh`
-3. انسخ المفتاح الذي يطبعه في النهاية
-4. تحقق: `curl http://localhost:8070/health` → يجب أن يرجع `{"ok":true}`
-
-#### في Lovable (أنا):
-5. أُعدّل ملفّي Edge Functions ليستخدما الأسرار الجديدة
-6. أطلب منك إدخال `VPS_AGENT_URL` و `VPS_AGENT_KEY` في Lovable Cloud
-7. بعد الإدخال، أزرار اللوحة ستعمل فوراً
-
-#### تنظيف لاحق (اختياري بعد التأكد):
-8. إيقاف الخدمة القديمة:
-```bash
-sudo systemctl stop server-monitor
-sudo systemctl disable server-monitor
-sudo kill -9 911   # العملية القديمة على 8050
-```
-
----
-
-### تفاصيل تقنية
-
-- البورت `8070` مختار لأنه نادر الاستخدام ولا يتعارض مع شيء معروف
-- المفتاح سيُولَّد بـ `openssl rand -hex 32` (64 حرف)
-- الخدمة الجديدة ستعمل بـ `Restart=on-failure` و `RestartSec=5` لمنع crash loop
-- لن أعدّل أي ملف من ملفات الـ agent القديمة على VPS — فقط أُنشئ جديداً منفصلاً
-
----
+**4) لا تغيير في باقي السكربت**
+- `vps_agent.py` يبقى كما هو
+- ملف `vps-agent-v2.service` يبقى كما هو
+- البورت `8070` والمفتاح والمسارات لا تتغير
 
 ### النتيجة المتوقعة
-بعد التنفيذ:
-```
-عملية vps_agent.py على بورت 8070  ←  Edge Functions جديدة  ←  لوحة Lovable
-                                    (تستخدم VPS_AGENT_URL/KEY)
-```
+السكربت سيعبر مرحلة "Installing system dependencies" بنجاح حتى مع مستودعات apt المعطّلة، ويكمل إنشاء venv و تنصيب Flask/psutil و تشغيل الخدمة على `8070`.
 
-لا تعارض مع القديم، لا 404، ولا حاجة لتشخيص الفوضى السابقة.
+### تفاصيل تقنية
+- `pip install flask psutil` يعمل عبر PyPI مباشرة ولا يحتاج apt
+- `openssl` لإنشاء المفتاح موجود افتراضياً في كل توزيعات Ubuntu/Debian
+- `ufw` فحصه بالفعل اختياري (`if command -v ufw`)، لذا لن يكسر شيئاً
 
