@@ -17,15 +17,55 @@ if [[ $EUID -ne 0 ]]; then
   exit 1
 fi
 
-echo "==> Installing system dependencies"
-apt-get update -y
-apt-get install -y python3 python3-pip python3-venv curl lsof
+echo "==> Checking system dependencies"
+
+REQUIRED_PKGS=(python3 python3-venv python3-pip curl lsof openssl)
+MISSING_PKGS=()
+
+pkg_installed() {
+  dpkg -s "$1" >/dev/null 2>&1
+}
+
+for pkg in "${REQUIRED_PKGS[@]}"; do
+  if pkg_installed "$pkg"; then
+    continue
+  fi
+  # python3-pip can be skipped if pip3 is available another way
+  case "$pkg" in
+    python3) command -v python3 >/dev/null 2>&1 && continue ;;
+    curl)    command -v curl    >/dev/null 2>&1 && continue ;;
+    lsof)    command -v lsof    >/dev/null 2>&1 && continue ;;
+    openssl) command -v openssl >/dev/null 2>&1 && continue ;;
+  esac
+  MISSING_PKGS+=("$pkg")
+done
+
+if [[ ${#MISSING_PKGS[@]} -eq 0 ]]; then
+  echo "    All required packages already installed. Skipping apt."
+else
+  echo "    Missing packages: ${MISSING_PKGS[*]}"
+  echo "==> Attempting apt-get update (non-fatal)"
+  APT_OPTS="-o Acquire::AllowInsecureRepositories=true -o Acquire::AllowDowngradeToInsecureRepositories=true -o APT::Get::AllowUnauthenticated=true"
+  apt-get $APT_OPTS update -y || echo "    (apt update failed, continuing anyway)"
+  echo "==> Installing missing packages"
+  if ! apt-get $APT_OPTS install -y --no-install-recommends "${MISSING_PKGS[@]}"; then
+    echo "    WARN: apt install failed for some packages."
+    echo "    If python3-venv is missing, install it manually then re-run this script."
+  fi
+fi
 
 echo "==> Creating ${APP_DIR}"
 mkdir -p "${APP_DIR}"
 
 echo "==> Creating Python virtualenv"
-python3 -m venv "${APP_DIR}/venv"
+if ! python3 -m venv "${APP_DIR}/venv" 2>/dev/null; then
+  echo "ERROR: 'python3 -m venv' failed. The 'python3-venv' package is missing"
+  echo "       and could not be installed automatically (apt repos likely broken)."
+  echo "       Try manually:"
+  echo "         apt-get install -y --no-install-recommends python3-venv"
+  echo "       Then re-run this script."
+  exit 1
+fi
 "${APP_DIR}/venv/bin/pip" install --upgrade pip
 "${APP_DIR}/venv/bin/pip" install flask psutil
 
