@@ -23,6 +23,14 @@ export const useContainerActions = (onAfterAction?: () => void) => {
         if (error) throw new Error(error.message || "فشل تنفيذ الأمر");
         if (data?.error) throw new Error(data.error);
 
+        // اكتشف رد HTML 404 من الـ agent (مسار غير موجود على السيرفر)
+        const out = typeof data?.output === "string" ? data.output : "";
+        if (/<!doctype html>|<title>404/i.test(out)) {
+          throw new Error(
+            "الـ Agent على السيرفر لا يدعم هذا المسار (404). حدّث agent.py على VPS وأعد تشغيل الخدمة."
+          );
+        }
+
         if (action !== "logs") {
           toast.success(`تم تنفيذ ${action} على ${container}`);
           onAfterAction?.();
