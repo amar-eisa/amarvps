@@ -16,8 +16,8 @@ serve(async (req) => {
   }
 
   try {
-    const hostUrl = Deno.env.get("MONITOR_HOST_URL");
-    const accessKey = Deno.env.get("MONITOR_ACCESS_KEY");
+    const hostUrl = Deno.env.get("VPS_AGENT_URL") ?? Deno.env.get("MONITOR_HOST_URL");
+    const accessKey = Deno.env.get("VPS_AGENT_KEY") ?? Deno.env.get("MONITOR_ACCESS_KEY");
     if (!hostUrl || !accessKey) {
       return new Response(
         JSON.stringify({ error: "Monitor not configured." }),
