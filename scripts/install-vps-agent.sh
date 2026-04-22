@@ -58,7 +58,14 @@ echo "==> Creating ${APP_DIR}"
 mkdir -p "${APP_DIR}"
 
 echo "==> Creating Python virtualenv"
-python3 -m venv "${APP_DIR}/venv"
+if ! python3 -m venv "${APP_DIR}/venv" 2>/dev/null; then
+  echo "ERROR: 'python3 -m venv' failed. The 'python3-venv' package is missing"
+  echo "       and could not be installed automatically (apt repos likely broken)."
+  echo "       Try manually:"
+  echo "         apt-get install -y --no-install-recommends python3-venv"
+  echo "       Then re-run this script."
+  exit 1
+fi
 "${APP_DIR}/venv/bin/pip" install --upgrade pip
 "${APP_DIR}/venv/bin/pip" install flask psutil
 
