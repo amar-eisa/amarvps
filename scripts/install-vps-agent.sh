@@ -224,6 +224,54 @@ def get_recent_commands():
     return cmds[-20:]
 
 
+def _parse_mem_to_mb(value):
+    """Parse a docker stats memory string like '12.34MiB' or '1.2GiB' into MB."""
+    try:
+        v = value.strip()
+        # Strip unit
+        units = [
+            ("GiB", 1024.0), ("MiB", 1.0), ("KiB", 1.0 / 1024.0),
+            ("GB", 1000.0 / 1.024), ("MB", 1.0), ("KB", 1.0 / 1024.0),
+            ("B", 1.0 / (1024.0 * 1024.0)),
+        ]
+        for suf, mult in units:
+            if v.endswith(suf):
+                num = float(v[: -len(suf)])
+                return round(num * mult, 1)
+        return round(float(v), 1)
+    except Exception:
+        return 0.0
+
+
+def get_container_stats():
+    """Return dict id -> {cpu_percent, mem_mb} using a single docker stats call."""
+    stats = {}
+    if not shutil.which("docker"):
+        return stats
+    code, out, _ = run_cmd([
+        "docker", "stats", "--no-stream", "--no-trunc",
+        "--format", "{{.ID}}|{{.CPUPerc}}|{{.MemUsage}}"
+    ], timeout=15)
+    if code != 0:
+        return stats
+    for line in out.strip().splitlines():
+        parts = line.split("|")
+        if len(parts) < 3:
+            continue
+        cid, cpu_s, mem_s = parts[0], parts[1], parts[2]
+        try:
+            cpu = float(cpu_s.strip().rstrip("%"))
+        except Exception:
+            cpu = 0.0
+        # mem usage looks like "12.34MiB / 1.952GiB"
+        used = mem_s.split("/")[0].strip() if "/" in mem_s else mem_s.strip()
+        mem_mb = _parse_mem_to_mb(used)
+        # Index by both full id and short id
+        stats[cid] = {"cpu_percent": round(cpu, 2), "mem_mb": mem_mb}
+        stats[cid[:12]] = stats[cid]
+    return stats
+
+
 def get_containers():
     if not shutil.which("docker"):
         return []
@@ -233,19 +281,25 @@ def get_containers():
     ])
     if code != 0:
         return []
+    stats = get_container_stats()
     items = []
     for line in out.strip().splitlines():
         parts = line.split("|")
         if len(parts) < 4:
             continue
         cid, name, status, ports = parts[0], parts[1], parts[2], parts[3]
+        s = stats.get(cid) or stats.get(cid[:12]) or {"cpu_percent": 0.0, "mem_mb": 0.0}
         items.append({
             "id": cid,
             "name": name,
             "status": status,
             "port": ports or "-",
             "owner": "root",
+            "cpu_percent": s["cpu_percent"],
+            "mem_mb": s["mem_mb"],
         })
+    # Sort by CPU desc, then memory desc
+    items.sort(key=lambda c: (c["cpu_percent"], c["mem_mb"]), reverse=True)
     return items
 
 
