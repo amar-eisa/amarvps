@@ -129,18 +129,23 @@ const ContainersTable = ({ containers, onAfterAction }: ContainersTableProps) =>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="text-right">اسم الحاوية</TableHead>
+              <TableHead className="text-right"><SortHead k="name" label="اسم الحاوية" /></TableHead>
               <TableHead className="text-right">ID</TableHead>
-              <TableHead className="text-right">الحالة</TableHead>
+              <TableHead className="text-right"><SortHead k="status" label="الحالة" /></TableHead>
+              <TableHead className="text-right"><SortHead k="cpu" label="CPU %" /></TableHead>
+              <TableHead className="text-right"><SortHead k="mem" label="RAM" /></TableHead>
               <TableHead className="text-right">البورت</TableHead>
               <TableHead className="text-right">المالك</TableHead>
               <TableHead className="text-right">إجراءات</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {containers.map((c) => {
+            {sorted.map((c) => {
               const running = isRunning(c.status);
               const target = c.name || c.id;
+              const cpu = c.cpu_percent ?? 0;
+              const mem = c.mem_mb ?? 0;
+              const memDisplay = mem >= 1024 ? `${(mem / 1024).toFixed(2)} GB` : `${mem.toFixed(1)} MB`;
               return (
                 <TableRow key={c.id}>
                   <TableCell className="font-mono text-xs">{c.name}</TableCell>
@@ -154,6 +159,14 @@ const ContainersTable = ({ containers, onAfterAction }: ContainersTableProps) =>
                     >
                       {running ? "running" : "exited"}
                     </Badge>
+                  </TableCell>
+                  <TableCell className="font-mono text-xs">
+                    <span className={cpu >= 50 ? "text-destructive font-semibold" : cpu >= 20 ? "text-primary" : ""}>
+                      {running ? `${cpu.toFixed(1)}%` : "-"}
+                    </span>
+                  </TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {running ? memDisplay : "-"}
                   </TableCell>
                   <TableCell className="font-mono text-xs">
                     {c.port && c.port !== "None" ? c.port : "-"}
