@@ -51,4 +51,6 @@ export interface ContainerInfo {
   status: string;
   port: string;
   owner: string;
+  cpu_percent?: number;
+  mem_mb?: number;
 }

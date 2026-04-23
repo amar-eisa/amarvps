@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ContainerInfo } from "@/types/vps";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -23,6 +23,7 @@ import {
   Trash2,
   FileText,
   Loader2,
+  ArrowUpDown,
 } from "lucide-react";
 import { useContainerActions, ContainerAction } from "@/hooks/useContainerActions";
 import ContainerLogsDialog from "./ContainerLogsDialog";
@@ -32,12 +33,57 @@ interface ContainersTableProps {
   onAfterAction?: () => void;
 }
 
+type SortKey = "cpu" | "mem" | "name" | "status";
+type SortDir = "asc" | "desc";
+
 const isRunning = (status: string) => status.toLowerCase().includes("up");
 
 const ContainersTable = ({ containers, onAfterAction }: ContainersTableProps) => {
   const { runAction, isPending, pendingAction } = useContainerActions(onAfterAction);
   const [logsFor, setLogsFor] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
+  const [sortKey, setSortKey] = useState<SortKey>("cpu");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  const sorted = useMemo(() => {
+    const arr = [...containers];
+    const dir = sortDir === "asc" ? 1 : -1;
+    arr.sort((a, b) => {
+      switch (sortKey) {
+        case "cpu":
+          return ((a.cpu_percent ?? 0) - (b.cpu_percent ?? 0)) * dir;
+        case "mem":
+          return ((a.mem_mb ?? 0) - (b.mem_mb ?? 0)) * dir;
+        case "name":
+          return a.name.localeCompare(b.name) * dir;
+        case "status":
+          return (Number(isRunning(b.status)) - Number(isRunning(a.status))) * dir;
+        default:
+          return 0;
+      }
+    });
+    return arr;
+  }, [containers, sortKey, sortDir]);
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir(key === "name" ? "asc" : "desc");
+    }
+  };
+
+  const SortHead = ({ k, label }: { k: SortKey; label: string }) => (
+    <button
+      type="button"
+      onClick={() => toggleSort(k)}
+      className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+    >
+      {label}
+      <ArrowUpDown className={`h-3 w-3 ${sortKey === k ? "text-primary" : "opacity-50"}`} />
+    </button>
+  );
 
   const ActionBtn = ({
     container,
