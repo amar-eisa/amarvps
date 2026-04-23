@@ -1,6 +1,6 @@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Download, Tv, X } from "lucide-react";
+import { Search, Download, Tv, X, FileText } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { VpsData } from "@/types/vps";
 import { exportAsCsv, exportAsJson } from "@/lib/exportData";
+import { exportVpsPdfReport } from "@/lib/exportPdfReport";
 
 interface DashboardToolbarProps {
   query: string;
@@ -73,6 +74,14 @@ const DashboardToolbar = ({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
             <DropdownMenuLabel className="text-xs">تصدير البيانات</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => data && exportVpsPdfReport(data)}
+              className="gap-2"
+            >
+              <FileText className="h-4 w-4" />
+              تقرير PDF كامل
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => exportAll("json")}>
               اللقطة كاملة (JSON)
