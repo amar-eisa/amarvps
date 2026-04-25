@@ -1,0 +1,9 @@
+version: '3.8'
+
+services:
+  amarvps-frontend:
+    build: .
+    container_name: amarvps_app
+    ports:
+      - "8090:80"
+    restart: unless-stopped
