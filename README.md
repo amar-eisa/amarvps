@@ -51,18 +51,25 @@ npm run dev
 bun run dev
 
 5.**Open the app:**
+
 Open your browser and navigate to the local URL provided by Vite (usually http://localhost:8080 or http://localhost:5173).
 
 🗄️ **Project Structure**
+
 /src/components/dashboard: Contains widgets for server metrics (CPU, RAM, Disk, Network) and container tables.
+
 
 /src/components/ui: Reusable UI components from shadcn/ui.
 
+
 /src/hooks: Custom React hooks for fetching VPS data, managing metrics history, and container actions.
+
 
 /src/pages: Main application views (Dashboard, Settings, Auth, etc.).
 
+
 /supabase/functions: Edge functions handling server monitoring, container actions, and keep-alive checks.
+
 
 🧪 **Testing**
 To run the test suite using Vitest:
