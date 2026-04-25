@@ -3,7 +3,7 @@ name: Deploy to VPS
 on:
   push:
     branches:
-      - main # أو اسم الفرع الذي تستخدمه
+      - main
 
 jobs:
   deploy:
@@ -17,14 +17,14 @@ jobs:
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_KEY }}
           script: |
-            # التوجه لمسار المشروع في السيرفر (تأكد من تعديل المسار إذا وضعته في مكان آخر)
+            # التوجه لمسار المشروع في السيرفر
             cd ~/amarvps
             
             # سحب أحدث التعديلات من GitHub
             git pull origin main
             
-            # إعادة بناء الحاوية وتشغيلها في الخلفية
-            sudo docker compose up -d --build
+            # إعادة بناء الحاوية وتشغيلها في الخلفية بدون sudo
+            docker compose up -d --build
             
-            # تنظيف صور Docker القديمة غير المستخدمة لتوفير المساحة (اختياري)
-            sudo docker image prune -f
+            # تنظيف صور Docker القديمة غير المستخدمة لتوفير المساحة بدون sudo
+            docker image prune -f
