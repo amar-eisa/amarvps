@@ -13,16 +13,18 @@ import ServiceTimeline from "@/components/dashboard/ServiceTimeline";
 import DashboardToolbar from "@/components/dashboard/DashboardToolbar";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
-import { Network, Container, Wifi, WifiOff, RefreshCw, Settings, Clock, Server } from "lucide-react";
+import { Network, Container, Wifi, WifiOff, RefreshCw, Settings, Clock, Server, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useRefreshInterval } from "@/hooks/useRefreshInterval";
 import { useDashboardFilter } from "@/hooks/useDashboardFilter";
 import { useTvMode } from "@/hooks/useTvMode";
+import { useAuth } from "@/hooks/useAuth";
 
 const Index = () => {
   const { interval: refreshInterval } = useRefreshInterval();
   const { data, loading, error, lastUpdated, refresh, history, serviceEvents } = useVpsData(refreshInterval);
   const navigate = useNavigate();
+  const { user, signOut } = useAuth();
   const [query, setQuery] = useState("");
   const filtered = useDashboardFilter(data, query);
   const { enabled: tvMode, toggle: toggleTvMode } = useTvMode();
@@ -46,12 +48,20 @@ const Index = () => {
             )}
           </div>
           <div className="flex items-center gap-2">
+            {user?.email && (
+              <span className="text-xs text-muted-foreground font-mono hidden md:inline" dir="ltr">
+                {user.email}
+              </span>
+            )}
             <Button variant="ghost" size="icon" onClick={refresh} disabled={loading} title="تحديث">
               <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
             </Button>
             <ThemeToggle />
             <Button variant="ghost" size="icon" onClick={() => navigate("/settings")} title="الإعدادات">
               <Settings className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={signOut} title="تسجيل الخروج">
+              <LogOut className="h-4 w-4" />
             </Button>
           </div>
         </div>
