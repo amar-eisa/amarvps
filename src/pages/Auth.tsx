@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/index";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -68,23 +67,6 @@ const Auth = () => {
     }
   };
 
-  const handleGoogle = async () => {
-    setBusy(true);
-    try {
-      const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
-      });
-      if (result.error) {
-        toast.error("فشل تسجيل الدخول عبر Google");
-        return;
-      }
-      if (result.redirected) return;
-      navigate("/", { replace: true });
-    } finally {
-      setBusy(false);
-    }
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4" dir="rtl">
       <Card className="w-full max-w-md">
@@ -135,19 +117,6 @@ const Auth = () => {
               </TabsContent>
             ))}
           </Tabs>
-
-          <div className="relative my-4">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">أو</span>
-            </div>
-          </div>
-
-          <Button variant="outline" className="w-full" disabled={busy} onClick={handleGoogle}>
-            متابعة عبر Google
-          </Button>
 
           <p className="text-xs text-muted-foreground text-center mt-4">
             الدخول مقتصر على عناوين البريد المسموح بها فقط
