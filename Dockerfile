@@ -6,12 +6,25 @@ WORKDIR /app
 COPY package.json package-lock.json* bun.lock* ./
 RUN npm install
 
-# نسخ باقي ملفات المشروع وبناء نسخة الإنتاج
+# نسخ باقي ملفات المشروع 
+# (ملاحظة: سيتم نسخ ملف .env الذي أنشأته على السيرفر هنا ليُستخدم أثناء البناء)
 COPY . .
 RUN npm run build
 
 # المرحلة الثانية: تشغيل خادم Nginx
 FROM nginx:alpine
+
+# إزالة إعدادات Nginx الافتراضية وإضافة إعداد يدعم React Router
+RUN rm /etc/nginx/conf.d/default.conf
+RUN echo 'server { \
+    listen 80; \
+    location / { \
+        root /usr/share/nginx/html; \
+        index index.html index.htm; \
+        try_files $uri $uri/ /index.html; \
+    } \
+}' > /etc/nginx/conf.d/default.conf
+
 # نسخ الملفات المبنية من المرحلة السابقة إلى مجلد Nginx
 COPY --from=build /app/dist /usr/share/nginx/html
 
